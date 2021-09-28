@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset='utf-8' />
+    <title>Nexus</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+    <script src='https://api.mapbox.com/mapbox-gl-js/v2.4.0/mapbox-gl.js'></script>
+    <link href='https://api.mapbox.com/mapbox-gl-js/v2.4.0/mapbox-gl.css' rel='stylesheet' />
+    <script src="https://unpkg.com/papaparse@latest/papaparse.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Roboto">
+
+    <style>
+	body { margin: 0; padding: 0; }
+        #map { position: absolute; top: 0; bottom: 0; width: 100%;}
+    </style>
+	
+    <style>
+        .mapboxgl-popup {
+        	-webkit-filter: drop-shadow(5px 5px 10px rgba(0, 0, 0, 0.6));
+        	filter: drop-shadow(5px 5px 10px rgba(0, 0, 0, 0.6));
+		max-width: 400px;
+		font: 12px/20px 'Roboto', Arial, Helvetica, sans-serif;
+		align-content: center;
+	}
+    </style>
+</head>
+
+<body>
+
+    <div id="map"></div>
+
+    <script>
+        mapboxgl.accessToken = 'pk.eyJ1IjoicmVsaWVmd2ViIiwiYSI6IldYR2ZuV3cifQ.eSPZMZWE6UyLtO0OH_-qrw';
+        
+	var map = new mapboxgl.Map({
+        container: 'map',
+        style: 'mapbox://styles/reliefweb/ckk5nhokq20ae17l8df8xothq',
+	    minZoom: 2,
+	    maxZoom: 5,
+	    center: [0, 20],
+	    pitch: 0
+        });
+
+	map.dragRotate.disable();
+	map.touchZoomRotate.disableRotation();
+
+
+        map.on('load', function () {
+            // Loads data from the Google spreadsheet
+	    const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR3LS3FpD0_15HEjqN8b1nJMmdV25Uh5uKcnHWQD1Jk_fEkpD3WSGZCIyUzZObCS7So7riM_2UKV5m8/pub?gid=0&single=true&output=csv';
+            Papa.parse(csvUrl, {
+                download: true,
+                header: true,
+                skipEmptyLines: true,
+                complete: function (results) {
+                    map.once('idle', () => {
+                        console.log(results.data);
+                        results.data.forEach(row => {
+                            map.setFeatureState({
+                                source: 'Nexus_fill',
+                                sourceLayer: 'wrl_polbnda_1m_ungis',
+                                id: row.COUNTRY,
+                            },
+                             //Other rows to load
+			    {
+				Country: row.COUNTRY,
+				Nexus: row.NEXUS,
+				CName: row.CNAME,
+				Link: row.LINK,
+				Description: row.DESCRIPTION,
+				Analysis: row.ANALYSIS,
+				Outcomes: row.OUTCOMES,
+				PnP: row.PNP,
+				Finance: row.FINANCE
+                            });
+                        });
+
+                        map.addLayer({
+                            id: 'Nexus_fill',
+                            type: 'fill',
+                            source: 'Nexus_fill',
+                            'source-layer': 'wrl_polbnda_1m_ungis',
+			    layout: {},
+                            paint: {
+                                'fill-color': "#D4E5F7",
+                                'fill-opacity': [ "match", [ "feature-state", "Nexus" ], "YES", 1.0, 0.0 ]	    
+                            }
+			// Add the layer under boundaries and under labels
+                        }, "Dashed bnd 1m");
+
+                    })
+                }
+            });
+
+            //Add source layer
+            map.addSource('Nexus_fill', {
+		sourceLayer: "wrl_polbnda_1m_ungis",
+                type: 'vector',
+                url: 'mapbox://reliefweb.3xu48qmc',
+                promoteId: 'Terr_Name'
+            });
+        
+	// This helps to reset the filter below
+	   map.on('click', (e) => {
+	      map.setFilter('Nexus_fill', Null);
+	   });
+
+	// When a click event occurs on a feature in the Nexus layer,
+	// open a popup at the location of the click, with description
+	// HTML from the click event's properties.
+	    map.on('click', 'Nexus_fill', (e) => {
+	      const Name = e.features[0].state['Terr_Name'];
+	      const Country = e.features[0].state['CName'];
+	      const Nexus =  e.features[0].state['Nexus'];
+	      const Link = e.features[0].state['Link'];
+	      const Analysis = e.features[0].state['Analysis'];
+	      const Outcomes = e.features[0].state['Outcomes'];
+	      const PnP =  e.features[0].state['PnP'];
+	      const Finance =  e.features[0].state['Finance'];
+	      new mapboxgl.Popup()
+	       .setLngLat(e.lngLat)
+	       .setHTML('<h4><strong><center>'+Country+'</h4></strong></center>'+'Analysis: '+Analysis+'<br>Download the report <a href='+Link + '>here</a></p>')
+	       .addTo(map);
+	      if (Name) {
+		map.setFilter('Nexus_fill', ['==', ['get', 'Terr_Name'], Name])
+	      }
+	 });
+		
+	// Change the cursor to a pointer when
+	// the mouse is over the states layer.
+	map.on('mouseenter', 'Nexus_fill', () => {
+	map.getCanvas().style.cursor = 'pointer';
+	});
+
+	// Change the cursor back to a pointer
+	// when it leaves the states layer.
+	map.on('mouseleave', 'Nexus_fill', () => {
+	map.getCanvas().style.cursor = '';
+	});	
+	
+	});
+	    
+    </script>
+
+</body>
+
+</html>
